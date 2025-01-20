@@ -1,0 +1,9 @@
+{
+    "name": "plutotv-scraper",
+    "private": true,
+    "workspaces": [
+      "packages/core",
+      "packages/worker-cf"
+    ]
+  }
+  
