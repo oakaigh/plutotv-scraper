@@ -35,20 +35,20 @@ export class PlutoTVScraper {
         const url = new URL(this.config?.bootURL ?? 'https://boot.pluto.tv/v4/start');
 
         for (const [key, value] of [
-            ["appName", "web"],
-            ["appVersion", "7.9.0-a9cca6b89aea4dc0998b92a51989d2adb9a9025d"],
-            ["deviceVersion", "16.2.0"],
-            ["deviceModel", "web"],
-            ["deviceMake", "Chrome"],
-            ["deviceType", "web"],
-            ["clientID", params?.clientID ?? '00000000-0000-0000-0000-000000000000'],
-            ["clientModelNumber", "1.0.0"],
-            ["channelID", "5a4d3a00ad95e4718ae8d8db"],
-            ["serverSideAds", "true"],
-            ["constraints", ""],
-            ["drmCapabilities", ""],
-            ["blockingMode", ""],
-            ["clientTime",
+            ['appName', 'web'],
+            ['appVersion', '7.9.0-a9cca6b89aea4dc0998b92a51989d2adb9a9025d'],
+            ['deviceVersion', '16.2.0'],
+            ['deviceModel', 'web'],
+            ['deviceMake', 'Chrome'],
+            ['deviceType', 'web'],
+            ['clientID', params?.clientID ?? '00000000-0000-0000-0000-000000000000'],
+            ['clientModelNumber', '1.0.0'],
+            ['channelID', '5a4d3a00ad95e4718ae8d8db'],
+            ['serverSideAds', 'true'],
+            ['constraints', ''],
+            ['drmCapabilities', ''],
+            ['blockingMode', ''],
+            ['clientTime',
                 ((x: string | Date) => x instanceof Date ? x.toISOString() : x)
                     (params?.clientTime ?? new Date())
             ]
@@ -80,10 +80,10 @@ export class PlutoTVScraper {
         );
 
         for (const [key, value] of [
-            ["channelIds", params?.channelIds?.join(',') ?? ''],
-            ["offset", params?.offset?.toString() || "0"],
-            //["limit", params?.limit?.toString() || "1000"],
-            ["sort", params?.sort || "number:asc"],
+            ['channelIds', params?.channelIds?.join(',') ?? ''],
+            ['offset', params?.offset?.toString() || '0'],
+            //['limit', params?.limit?.toString() || '1000'],
+            ['sort', params?.sort || 'number:asc'],
         ])
             url.searchParams.append(key, value);
 
@@ -124,16 +124,16 @@ export class PlutoTVScraper {
 
         if (params?.start)
             url.searchParams.append(
-                "start",
+                'start',
                 params.start instanceof Date
                     ? params.start.toISOString()
                     : params.start,
             );
 
         for (const [key, value] of [
-            ["duration", params?.duration?.toString() ?? '240'],
-            ["channelIds", params?.channelIds?.join(',') ?? ''],
-            ["offset", params?.offset?.toString() ?? '0'],
+            ['duration', params?.duration?.toString() ?? '240'],
+            ['channelIds', params?.channelIds?.join(',') ?? ''],
+            ['offset', params?.offset?.toString() ?? '0'],
         ])
             url.searchParams.append(key, value);
 
@@ -192,29 +192,31 @@ export class PlutoTVM3U8Loader {
             transforms?: {
                 channelURL?: (url: URL) => URL,
             },
-
+        },
+        requestOptions?: {
             params?: Partial<{
-                clientID: string,
-                clientTime: string | Date,
-                channelIds: string[],
-                sort: string,
+                clientID?: string,
+                clientTime?: string | Date,
             }>,
-            headers?: any,
-        }
+            headers?: any,            
+        },
     ) {
         // TODO
         const bootData = await this.scraper.boot({
-            clientID: options?.params?.clientID,
-            clientTime: options?.params?.clientTime,
-        }, options?.headers);
-        const channelList = await this.scraper.channels({
-            channelIds: options?.params?.channelIds,
-            sort: options?.params?.sort,
-        }, options?.headers);
-        const categoryList = await this.scraper.categories({}, options?.headers);
+            clientID: requestOptions?.params?.clientID,
+            clientTime: requestOptions?.params?.clientTime,
+        }, requestOptions?.headers);
+
+        const [
+            channelsData,
+            categoriesData,
+        ] = await Promise.all([
+            this.scraper.channels({}, requestOptions?.headers),
+            this.scraper.categories({}, requestOptions?.headers),
+        ]);
 
         const channelGroupTitles = new Map<string, string>();
-        for (const categoryData of categoryList.data) {
+        for (const categoryData of categoriesData.data) {
             for (const channelID of categoryData.channelIDs) {
                 channelGroupTitles.set(channelID, categoryData.name);
             }
@@ -225,7 +227,7 @@ export class PlutoTVM3U8Loader {
         ];
 
         // TODO
-        for (const channelData of channelList.data) {
+        for (const channelData of channelsData.data) {
             // channelData.isStitched
             var channelURL: URL = new URL(channelData.stitched.path, bootData.servers.stitcher);
             for (const [key, value] of new URLSearchParams(bootData.stitcherParams).entries())
@@ -251,96 +253,10 @@ export class PlutoTVM3U8Loader {
 }
 
 
-
 import { 
     Builder as XMLBuilder, 
     BuilderOptions as XMLBuilderOptions,
 } from 'xml2js';
-
-
-export class PlutoTVXSPFLoader {
-    protected scraper: PlutoTVScraper;
-
-    constructor() {
-        this.scraper = new PlutoTVScraper();
-    }
-
-    public async load(
-        options?: {
-            params?: Partial<{
-                clientID: string,
-                clientTime: string | Date,
-                channelIds: string[],
-                sort: string,
-            }>,
-            headers?: any,
-            transforms?: {
-                channelURL?: (url: URL) => URL,
-            },
-        }
-    ) {
-        // TODO
-        const bootData = await this.scraper.boot({...options?.params}, options?.headers);
-        const channelList = await this.scraper.channels(options?.params, options?.headers);
-
-        // await this.scraper.categories({}, headers);
-        // await this.scraper.timelineList({}, headers);
-
-        const tvgRefURL = new URL('http://example.com/tvg');
-
-        const xmlOptions: XMLBuilderOptions = {
-            rootName: 'playlist',
-            xmldec: {
-                version: "1.0",
-                encoding: "UTF-8",
-            },
-            // renderOpts: {
-            //     pretty: true, // Format with indentation
-            // },
-        };
-        const xml: any = {
-            $: {
-                version: "1",
-                xmlns: "http://xspf.org/ns/0/",
-                "xmlns:tvg": tvgRefURL?.toString(),
-            },
-            // TODO
-            title: "PlutoTV",
-            trackList: {
-                track: [],
-            },
-        };
-
-        // TODO
-        for (const channelData of channelList.data) {
-            // channelData.isStitched
-            var channelURL: URL = new URL(channelData.stitched.path, bootData.servers.stitcher);
-            for (const [key, value] of new URLSearchParams(bootData.stitcherParams).entries())
-                channelURL.searchParams.append(key, value);
-
-            channelURL = options?.transforms?.channelURL?.(channelURL) ?? channelURL;
-
-            xml.trackList.track.push({
-                location: channelURL.toString(),
-                title: channelData.name,
-                extension: {
-                    $: { application: tvgRefURL?.toString() },
-                    "tvg:tvg-id": channelData.id,
-                    // "tvg:tvg-name": channelData.name,
-                    // "tvg:tvg-logo": [...channelData.images].map(
-                    //     (x: any) => ({
-                    //         // TODO
-                    //         $: { type: x.type },
-                    //         _: new URL(x.url).toString(),
-                    //     })
-                    // ),
-                },
-            });
-        }
-
-        return new XMLBuilder(xmlOptions).buildObject(xml);
-    }
-}
 
 
 function serializeXMLTVDate(date: Date): string {
@@ -368,25 +284,50 @@ export class PlutoTVXMLTVLoader {
         this.scraper = new PlutoTVScraper();
     }
 
-    public async load() {
+    public async load(
+        options?: {
+            headerTags?: string[],
+            itemTags?: string[],
+            transforms?: {
+                channelURL?: (url: URL) => URL,
+            },
+        },
+        requestOptions?: {
+            params?: Partial<{
+                clientID?: string,
+                clientTime?: string | Date,
+            }>,
+            headers?: any,            
+        },
+    ) {
         // TODO
-        await this.scraper.boot();
-        const channelsData = await this.scraper.channels();
-        const timelinesData = await this.scraper.timelinesAll();
+        await this.scraper.boot({
+            clientID: requestOptions?.params?.clientID,
+            clientTime: requestOptions?.params?.clientTime,
+        }, requestOptions?.headers);
+        
+        const [
+            channelsData,
+            timelinesData,
+        ] = await Promise.all([
+            this.scraper.channels({}, requestOptions?.headers),
+            this.scraper.timelinesAll({}, requestOptions?.headers),
+        ]);
 
         const xmlOptions: XMLBuilderOptions = {
-            doctype: {'sysID': 'xmltv'},
+            doctype: {'sysID': 'xmltv.dtd'},
+            rootName: 'tv',
         };
-        const xml: any = {
-            channel: [],
-            programme: [],
+        const xml: { [key: string]: any } = {
+            'channel': [],
+            'programme': [],
         };
 
         for (const channelData of channelsData.data) {
-            xml.channel.push({
+            xml['channel'].push({
                 $: { id: channelData.id },
-                display_name: channelData.name,
-                icon: [...channelData.images].map(
+                'display-name': channelData.name,
+                'icon': [...channelData.images].map(
                     (x: any) => ({
                         $: { 
                             src: new URL(x.url).toString(),
@@ -402,44 +343,88 @@ export class PlutoTVXMLTVLoader {
 
         for (const channelTimelineData of timelinesData.data as any[]) {
             for (const timeline of channelTimelineData.timelines) {
-                xml.programme.push({
+                const programme: { [key: string]: any } = {
                     $: {
                         start: serializeXMLTVDate(new Date(timeline.start)),
                         stop: serializeXMLTVDate(new Date(timeline.stop)),
                         channel: channelTimelineData.channelId,
                     },
-                    title: { _: timeline.title },
-                    "sub-title": { _: timeline.episode.name },
-                    desc: [
-                        { _: timeline.episode.description }
-                    ],
-                    credits: [],
-                    date: { 
+                    'title': { _: timeline.title },
+                };
+
+                if (timeline.episode?.name != null) {
+                    programme['sub-title'] = { _: timeline.episode.name };
+                }
+
+                if (timeline.episode?.description != null) {
+                    programme['desc'] = [{ _: timeline.episode.description }];
+                }
+
+                if (timeline.episode?.clip?.originalReleaseDate != null) {
+                    programme['date'] = { 
                         _: serializeXMLTVDate(
                             new Date(timeline.episode.clip.originalReleaseDate)
-                        ) 
-                    },
-                    category: [
-                        { _: timeline.episode.genre },
-                        { _: timeline.episode.subGenre },
-                    ],
-                    icon: { $: { src: timeline.episode.thumbnail.path } },
-                    "episode-num": [
-                        { $: { system: "xmltv_ns" }, _: `${timeline.episode.season}.${timeline.episode.number}` },
-                    ],
-                    // subtitles
-                    //length: { _: Math.floor(data.episode.duration / 1000).toString(), $: { units: "seconds" } },
-                    rating: { value: timeline.episode.rating },
+                        )
+                    };
+                }
 
-                    image: [
-                        { $: {type: "still"}, _: timeline.episode.thumbnail.path },
-                        { $: {type: "poster", orient: "P"}, _: timeline.episode.poster.path },
-                        { $: {type: "poster", orient: "L"}, _: timeline.episode.poster16_9.path },
-                        // { _: timeline.episode.featuredImage.path },
-                    ],
-                    //"previously-shown": { $: { start: serializeXMLTVDate(timeline.episode.clip.originalReleaseDate) } },
-                    //live: timeline.episode.liveBroadcast ? "yes" : "no"
-                });
+                if (timeline.episode?.firstAired != null) {
+                    programme['date'] = { 
+                        _: serializeXMLTVDate(
+                            new Date(timeline.episode.firstAired)
+                        )
+                    };
+                }
+
+                programme['category'] = [];
+
+                if (timeline.episode?.genre != null) {
+                    programme['category'].push({ _: timeline.episode.genre });
+                }
+
+                if (timeline.episode?.subGenre != null) {
+                    programme['category'].push({ _: timeline.episode.subGenre });
+                }
+
+                if (timeline.episode?.thumbnail?.path != null) {
+                    programme['icon'] = { $: { src: timeline.episode.thumbnail.path } };
+                }
+
+                if (timeline.episode?.season != null) {
+                    programme['episode-num'] = { 
+                        $: { system: 'xmltv_ns' }, 
+                        _: `${timeline.episode.season}.${timeline.episode.number ?? ''}`,
+                    };
+                }
+
+                if (timeline.episode?.rating != null) {
+                    programme['rating'] = { value: timeline.episode.rating };
+                }
+
+                programme['image'] = [];
+
+                if (timeline.episode.thumbnail?.path != null) {
+                    programme['image'].push({ 
+                        $: { type: 'still' }, 
+                        _: timeline.episode.thumbnail.path,
+                    });
+                }
+
+                if (timeline.episode.poster?.path != null) {
+                    programme['image'].push({ 
+                        $: { type: 'poster', orient: 'P' }, 
+                        _: timeline.episode.poster.path, 
+                    });
+                }
+
+                if (timeline.episode.poster16_9?.path != null) {
+                    programme['image'].push({ 
+                        $: { type: 'poster', orient: 'L' }, 
+                        _: timeline.episode.poster16_9.path,
+                    });
+                }
+            
+                xml['programme'].push(programme);
             }
         }
 
